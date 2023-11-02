@@ -12,13 +12,21 @@ def calendar_event():
     # Retrieve the parameters from the query string
     timestamp = request.args.get('ts', default=None, type=int)
     event_name = request.args.get('name', default="Unnamed Event", type=str)
-    
-    if timestamp is None:
-        return "Missing or invalid timestamp", 400
+    iso = request.args.get('iso', default=None, type=str)
+
+    # Validation to ensure either 'ts' or 'iso' is provided, but not both
+    if timestamp is not None and iso is not None:
+        return "Provide either 'ts' or 'iso', but not both.", 400
+    if timestamp is None and iso is None:
+        return "Either 'ts' or 'iso' parameter must be provided.", 400
 
     try:
-        # Convert UNIX timestamp to a timezone-aware datetime object
-        event_time = datetime.fromtimestamp(timestamp, tz=pytz.utc)
+        if iso:
+            # Parse the ISO8601 date string to a datetime object
+            event_time = datetime.strptime(iso, "%Y%m%dT%H%M%S")
+        else:
+            # Convert UNIX timestamp to a timezone-aware datetime object
+            event_time = datetime.fromtimestamp(timestamp, tz=pytz.utc)
 
         # Create an iCalendar file with the product identifier for Biotic's CalGen
         cal = Calendar()
@@ -39,12 +47,9 @@ def calendar_event():
 
         return response
 
-    except ValueError:
-        return "Invalid timestamp", 400
+    except ValueError as e:
+        return f"Invalid date format: {e}", 400
 
-@app.route("/")
-def hello_world():
-    return {"message": "Hello World!"}
 
 if __name__ == '__main__':
     app.run(debug=True)
